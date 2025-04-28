@@ -8,12 +8,6 @@ proj = [
     0,      0,      1,      1
 ]
 
-class Manager(sc.GestureManager):
-    def should_prevent(self, gesture: sc.AbstractGesture, preventer: sc.AbstractGesture) -> bool:
-        if gesture.name != "gesture_name" and preventer.state == sc.GestureState.BEGAN:
-            return True
-
-
 class Move(sc.DragGesture):
     def __init__(self, transform: sc.Transform, **kwargs):
         super().__init__(**kwargs)
@@ -24,11 +18,23 @@ class Move(sc.DragGesture):
         current = sc.Matrix44.get_translation_matrix(*translate)
         self.__transform.transform *= current
 
-    def on_began(self):
-        self.sender.color = ui.color.indigo
+    # def on_began(self):
+        # self.sender.color = ui.color.indigo
 
-    def on_ended(self):
-        self.sender.color = ui.color.beige
+    # def on_ended(self):
+        # self.sender.color = ui.color.beige
+
+
+def setcolor(sender, color):
+    sender.color = color
+
+
+class Manager(sc.GestureManager):
+    def should_prevent(self, gesture: sc.AbstractGesture, preventer: sc.AbstractGesture) -> bool:
+        if gesture.name != "gesture_name" and preventer.state == sc.GestureState.BEGAN:
+            return True
+
+manager = Manager()
 
 
 class GestureWindowExample(ui.Window):
@@ -53,7 +59,11 @@ class GestureWindowExample(ui.Window):
                             2, # height
                             color=ui.color.beige,
                             thickness=5,
-                            gesture=Move(transform)
+                            gestures=[
+                                Move(transform, manager=manager, name="gesture_name"),
+                                sc.ClickGesture(lambda s: setcolor(s, ui.color.red), manager=manager, name="gesture_name"),
+                                sc.DoubleClickGesture(lambda s: setcolor(s, ui.color.beige), manager=manager, name="gesture_name")
+                            ]
                         )
 
                     transform = sc.Transform(transform=sc.Matrix44.get_translation_matrix(0,0,-1))
