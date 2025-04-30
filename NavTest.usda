@@ -7,8 +7,8 @@
                 double radius = 500
             }
             dictionary Perspective = {
-                double3 position = (843.4407972673873, 570.3289819517331, -449.8482556462121)
-                double3 target = (-3947.6246634776144, -1245.6351121777284, 1720.6907527497588)
+                double3 position = (995.3593702664996, 240.32793948130325, 10.924785268656315)
+                double3 target = (-4440.126651366893, -979.8140630992739, 1828.4517030322347)
             }
             dictionary Right = {
                 double3 position = (-50000, 0, 0)
@@ -32,7 +32,7 @@
                     double defaultCost = 1
                 }
             }
-            bool excludeRigidBodies = 0
+            bool excludeRigidBodies = 1
         }
         dictionary omni_layer = {
             string authoring_layer = "./NavTest.usda"
@@ -82,6 +82,7 @@ def Xform "World"
     }
 
     def NavMeshVolume "NavMeshVolume" (
+        delete apiSchemas = ["NavMeshExcludeAPI"]
         prepend apiSchemas = ["NavMeshAreaAPI"]
     )
     {
@@ -107,7 +108,7 @@ def Xform "World"
         token visibility = "inherited"
         double3 xformOp:rotateXYZ = (0, 0, 0)
         double3 xformOp:scale = (1, 1, 1)
-        double3 xformOp:translate = (0, 30.75277432595803, 0)
+        double3 xformOp:translate = (0, 93.71346708730681, 0)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
     }
 
@@ -189,7 +190,7 @@ def Xform "World"
         uniform token subdivisionScheme = "none"
         double3 xformOp:rotateXYZ = (0, 0, 0)
         double3 xformOp:scale = (1, 1, 1)
-        double3 xformOp:translate = (-159.50543121696052, 43.929299726892225, -314.787811422849)
+        double3 xformOp:translate = (-159.50543121696052, 553.931187538547, -626.9409613720613)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
     }
 
@@ -220,6 +221,29 @@ def Xform "World"
         double3 xformOp:rotateXYZ = (0, 0, 0)
         double3 xformOp:scale = (1, 1, 1)
         double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Mesh "Cube_06"
+    {
+        uniform bool doubleSided = 0
+        float3[] extent = [(-50, -50, -50), (50, 50, 50)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 4, 6, 7, 5, 6, 2, 3, 7, 4, 5, 1, 0, 4, 0, 2, 6, 5, 7, 3, 1]
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0)] (
+            interpolation = "faceVarying"
+        )
+        point3f[] points = [(-50, -50, 50), (50, -50, 50), (-50, 50, 50), (50, 50, 50), (-50, -50, -50), (50, -50, -50), (-50, 50, -50), (50, 50, -50)]
+        texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1), (0, 1), (1, 0), (1, 1), (0, 1), (0, 0), (0, 1), (0, 0), (1, 0), (1, 1), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0), (1, 0), (1, 1), (0, 1), (1, 0), (1, 1), (0, 1), (0, 0)] (
+            interpolation = "faceVarying"
+        )
+        uniform token purpose = "default"
+        bool singleSided = 0
+        uniform token subdivisionScheme = "none"
+        token visibility = "inherited"
+        double3 xformOp:rotateXYZ = (0, 0, 0)
+        double3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (792.4414540369899, 51.64667897264692, -1202.9062331550138)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
     }
 }
