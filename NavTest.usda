@@ -7,8 +7,8 @@
                 double radius = 500
             }
             dictionary Perspective = {
-                double3 position = (995.3593702664996, 240.32793948130325, 10.924785268656315)
-                double3 target = (-4440.126651366893, -979.8140630992739, 1828.4517030322347)
+                double3 position = (-1510.91621638521, 953.5318965918431, 1411.8415793157897)
+                double3 target = (3674.8067669705497, -1542.1292143087462, -3869.597511556987)
             }
             dictionary Right = {
                 double3 position = (-50000, 0, 0)
@@ -95,23 +95,6 @@ def Xform "World"
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
     }
 
-    def Cube "Cube" (
-        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
-    )
-    {
-        float3[] extent = [(-50, -50, -50), (50, 50, 50)]
-        bool physics:collisionEnabled = 1
-        bool physics:kinematicEnabled = 0
-        bool physics:rigidBodyEnabled = 1
-        uniform token purpose = "default"
-        double size = 100
-        token visibility = "inherited"
-        double3 xformOp:rotateXYZ = (0, 0, 0)
-        double3 xformOp:scale = (1, 1, 1)
-        double3 xformOp:translate = (0, 93.71346708730681, 0)
-        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
-    }
-
     def Cube "Cube_01" (
         delete apiSchemas = ["NavMeshExcludeAPI"]
     )
@@ -156,9 +139,9 @@ def Xform "World"
             interpolation = "faceVarying"
         )
         uniform token subdivisionScheme = "none"
-        double3 xformOp:rotateXYZ = (0, 0, 0)
+        double3 xformOp:rotateXYZ = (0, 65.8000009804964, 0)
         double3 xformOp:scale = (5.4000000804662704, 1, 1)
-        double3 xformOp:translate = (-317.76098311187974, 39.15028517871191, 276.4940411545956)
+        double3 xformOp:translate = (167.24688677821183, 39.15028517871572, 69.45618265084721)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
     }
 
@@ -244,6 +227,15 @@ def Xform "World"
         double3 xformOp:rotateXYZ = (0, 0, 0)
         double3 xformOp:scale = (1, 1, 1)
         double3 xformOp:translate = (792.4414540369899, 51.64667897264692, -1202.9062331550138)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Sphere "Actor"
+    {
+        double radius = 50
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 100.44510000000007, 0)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
     }
 }

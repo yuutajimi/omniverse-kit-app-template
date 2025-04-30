@@ -2,7 +2,7 @@ import omni.anim.navigation.core as nav
 import carb
 import omni.usd
 import omni.kit.app
-from pxr import UsdGeom, Gf, Sdf
+from pxr import UsdGeom, Gf, Sdf, Usd, Tf
 
 
 class Transform:
@@ -34,10 +34,33 @@ class Transform:
         return xform.AddTranslateOp()
 
 
+class PathVisualizer:
+    def __init__(self, stage: Usd.Stage, visualize_path: str, path_points: list[carb.Float3]):
+        self._stage = stage
+        root_path = Sdf.Path(visualize_path)
+        self._root = UsdGeom.Xform.Define(stage, root_path)
+
+        for i, point in enumerate(path_points):
+            self._create_point(point, i)
+
+    def destroy(self):
+        self._stage.RemovePrim(self._root.GetPath())
+
+    def _create_point(self, position: carb.Float3, number: int):
+        root_path = self._root.GetPath()
+        print(root_path)
+        path = root_path.AppendChild(f"Point_{number}")
+        print("path aaaaaaaaaaa")
+        print(path)
+        sphere: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, path)
+        sphere.GetRadiusAttr().Set(10)
+        Transform(sphere).position_carb = position
+
+
 class NavSample:
     def __init__(self):
         self._speed = 50.0
-        self._stage = omni.usd.get_context().get_stage()
+        self._stage: Usd.Stage = omni.usd.get_context().get_stage()
 
     def start(self):
         self._path_points = self._find_path()
@@ -61,6 +84,12 @@ class NavSample:
                 )
         )
 
+        self._path_visualizer = PathVisualizer(
+            self._stage,
+            "/World/PathVisualizer",
+            self._path_points
+        )
+
     def stop(self):
         if self._actor:
             # TODO: destroy actor
@@ -70,6 +99,9 @@ class NavSample:
         self._actor = None
         self._actor_transform = None
         self._update_sub = None
+        if self._path_visualizer:
+            self._path_visualizer.destroy()
+        self._path_visualizer = None
 
 
     def _on_update(self, e: carb.events.IEvent):
@@ -91,7 +123,7 @@ class NavSample:
             return
 
         start_pos = carb.Float3(0, 0, 0)
-        end_pos = carb.Float3(100, 50, 0)
+        end_pos = carb.Float3(1000, 50, 0)
 
         path_query_result = navmesh.query_shortest_path(
             start_pos=start_pos,
