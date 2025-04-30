@@ -3,36 +3,8 @@ import carb
 import omni.usd
 import omni.kit.app
 from pxr import UsdGeom, Gf, Sdf, Usd, Tf
-
-
-class Transform:
-    def __init__(self, prim):
-        self._xform = UsdGeom.Xformable(prim)
-        self._translate_op = self._ensure_xform_ops(self._xform, UsdGeom.XformOp.TypeTranslate)
-
-    @property
-    def position(self) -> Gf.Vec3d:
-        return self._translate_op.Get()
-
-    @position.setter
-    def position(self, value: Gf.Vec3d):
-        self._translate_op.Set(value)
-
-    @property
-    def position_carb(self) -> carb.Float3:
-        pos = self.position
-        return carb.Float3(pos[0], pos[1], pos[2])
-
-    @position_carb.setter
-    def position_carb(self, value: carb.Float3):
-        self.position = Gf.Vec3d(value.x, value.y, value.z)
-
-    def _ensure_xform_ops(self, xform: UsdGeom.Xformable, type: UsdGeom.XformOp):
-        for op in xform.GetOrderedXformOps():
-            if op.GetOpType() == type:
-                return op
-        return xform.AddTranslateOp()
-
+from .transform import Transform
+import math
 
 class PathVisualizer:
     def __init__(self, stage: Usd.Stage, visualize_path: str, path_points: list[carb.Float3]):
@@ -48,13 +20,88 @@ class PathVisualizer:
 
     def _create_point(self, position: carb.Float3, number: int):
         root_path = self._root.GetPath()
-        print(root_path)
         path = root_path.AppendChild(f"Point_{number}")
-        print("path aaaaaaaaaaa")
-        print(path)
         sphere: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, path)
         sphere.GetRadiusAttr().Set(10)
         Transform(sphere).position_carb = position
+
+
+def float3_add(a: carb.Float3, b: carb.Float3):
+    return carb.Float3(
+        a.x + b.x,
+        a.y + b.y,
+        a.z + b.z,
+    )
+
+
+def float3_sub(a: carb.Float3, b: carb.Float3):
+    return carb.Float3(
+        a.x - b.x,
+        a.y - b.y,
+        a.z - b.z,
+    )
+
+def float3_mul_float(a: carb.Float3, b: float):
+    return carb.Float3(
+        a.x * b,
+        a.y * b,
+        a.z * b,
+    )
+
+def float3_lerp(a: carb.Float3, b: carb.Float3, t: float):
+    offset = float3_sub(b, a)
+    offset = float3_mul_float(offset, t)
+    return float3_add(a, offset)
+
+
+def float3_magnitude(v: carb.Float3):
+    sum_of_squares = (v.x * v.x) + \
+                    (v.y * v.y) + \
+                    (v.z * v.z)
+
+    return math.sqrt(sum_of_squares)
+
+
+class PathNavigator:
+    def __init__(self, points: list[carb.Float3]):
+        self._points = points
+        self._current_distance = 0.0
+        self._current_index = 0
+        self._current_progress = 0.0
+        self._arrival_threshold = 1.0
+
+    @property
+    def points(self) -> list[carb.Float3]:
+        return self._points
+
+    def evaluate_current_position(self) -> carb.Float3:
+        point = self._points[self._current_index]
+        if self._current_index < len(self._points) - 1:
+            next_point = self._points[self._current_index + 1]
+            point = float3_lerp(point, next_point, self._current_progress)
+
+        return point
+
+    def move_forward(self, distance: float):
+        while distance > 0:
+            if self._current_index >= len(self._points) - 1:
+                return
+
+            current_point = self._points[self._current_index]
+            next_point = self._points[self._current_index + 1]
+            span = float3_magnitude(float3_sub(next_point, current_point))
+            distance_rate = distance / span if span > 0 else 1
+            remaining_progress = 1 - self._current_progress
+
+            if remaining_progress > distance_rate:
+                self._current_progress += distance_rate
+                break
+            else:
+                distance -= span * remaining_progress
+                self._current_index += 1
+                self._current_progress = 0
+
+        print(f"moved: {self._current_index}: {self._current_progress}")
 
 
 class NavSample:
@@ -73,8 +120,6 @@ class NavSample:
         actor.GetRadiusAttr().Set(50)
         self._actor_transform = Transform(actor)
 
-        self._actor_transform.position_carb = self._path_points[0]
-
         self._update_sub = (
             omni.kit.app.get_app()
                 .get_update_event_stream()
@@ -89,6 +134,9 @@ class NavSample:
             "/World/PathVisualizer",
             self._path_points
         )
+        self._path_navigator = PathNavigator(self._path_points)
+        self._actor_transform.position_carb = self._path_navigator.evaluate_current_position()
+
 
     def stop(self):
         if self._actor:
@@ -106,13 +154,10 @@ class NavSample:
 
     def _on_update(self, e: carb.events.IEvent):
         delta_time = e.payload["dt"]
-        print(delta_time)
 
-        # current_pos = Gf.Vec3d(translate_op.Get())
-        # target_point = self._path_points[0]
-        self._actor_transform.position += Gf.Vec3d(0, self._speed, 0) * delta_time
-        # translate_op.Set(translate_op.Get() + Gf.Vec3d(0, self._speed, 0) * delta_time)
-        # self._move_actor_position(Gf.Vec3d(0, self._speed, 0) * delta_time)
+        # self._actor_transform.position += Gf.Vec3d(0, self._speed, 0) * delta_time
+        self._path_navigator.move_forward(self._speed * delta_time)
+        self._actor_transform.position_carb = self._path_navigator.evaluate_current_position()
 
     def _find_path(self):
         inav = nav.acquire_interface()
