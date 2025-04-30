@@ -10,9 +10,8 @@
 # its affiliates is strictly prohibited.
 
 import omni.ext
-from .control_panel import ControlPanelWindow
 import omni.timeline as timeline
-from . import nav_sample
+from .nav_sample import NavSample
 
 # Any class derived from `omni.ext.IExt` in the top level module (defined in
 # `python.modules` of `extension.toml`) will be instantiated when the extension
@@ -26,8 +25,6 @@ class MyExtension(omni.ext.IExt):
     def on_startup(self, _ext_id):
         """This is called every time the extension is activated."""
         print("[nico.nav_test_extension] Extension startup")
-        self._control_panel = ControlPanelWindow(title="ControlPanel", width=500, height=500)
-
         timeline_interface = timeline.get_timeline_interface()
         self._play_event_sub = (
             timeline_interface
@@ -45,15 +42,13 @@ class MyExtension(omni.ext.IExt):
                     self._on_timeline_stop
                 )
         )
+        self._nav_sample = NavSample()
 
 
     def on_shutdown(self):
         """This is called every time the extension is deactivated. It is used
         to clean up the extension state."""
         print("[nico.nav_test_extension] Extension shutdown")
-        if self._control_panel:
-            self._control_panel.destroy()
-        self._control_panel = None
 
         self._play_event_sub = None
         self._stop_event_sub = None
@@ -61,8 +56,9 @@ class MyExtension(omni.ext.IExt):
 
     def _on_timeline_play(self, event):
         print("aaaaaaa Play")
-        nav_sample.run()
+        self._nav_sample.start()
 
 
     def _on_timeline_stop(self, event):
         print("aaaaaa Stop")
+        self._nav_sample.stop()
