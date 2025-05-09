@@ -55,10 +55,10 @@ class MyExtension(omni.ext.IExt):
 
 
     def _on_timeline_play(self, event):
-        print("aaaaaaa Play")
+        print("Play")
         self._nav_sample.start()
 
 
     def _on_timeline_stop(self, event):
-        print("aaaaaa Stop")
+        print("Stop")
         self._nav_sample.stop()

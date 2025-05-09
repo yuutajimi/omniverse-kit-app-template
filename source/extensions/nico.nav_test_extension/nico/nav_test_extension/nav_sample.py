@@ -107,12 +107,13 @@ class PathNavigator:
 class NavSample:
     def __init__(self):
         self._speed = 50.0
-        self._stage: Usd.Stage = omni.usd.get_context().get_stage()
 
     def start(self):
         self._path_points = self._find_path()
         if not self._path_points:
             return
+
+        self._stage: Usd.Stage = omni.usd.get_context().get_stage()
 
         actor_path = Sdf.Path("/World/Actor")
         actor: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, actor_path)
@@ -146,6 +147,7 @@ class NavSample:
 
         self._actor = None
         self._actor_transform = None
+        self._stage = None
         self._update_sub = None
         if self._path_visualizer:
             self._path_visualizer.destroy()
