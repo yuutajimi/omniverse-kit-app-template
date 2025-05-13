@@ -25,47 +25,51 @@ class PathVisualizer:
         path = root_path.AppendChild(f"Point_{number}")
         sphere: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, path)
         sphere.GetRadiusAttr().Set(10)
-        Transform(sphere).position_carb = position
+        Transform(sphere).position = position
 
 
-def float3_add(a: Gf.Vec3d, b: Gf.Vec3d):
-    return Gf.Vec3d(
-        a.x + b.x,
-        a.y + b.y,
-        a.z + b.z,
-    )
+# def float3_add(a: Gf.Vec3d, b: Gf.Vec3d):
+#     return Gf.Vec3d(
+#         a.x + b.x,
+#         a.y + b.y,
+#         a.z + b.z,
+#     )
 
 
-def float3_sub(a: carb.Float3, b: carb.Float3):
-    return carb.Float3(
-        a.x - b.x,
-        a.y - b.y,
-        a.z - b.z,
-    )
+# def float3_sub(a: carb.Float3, b: carb.Float3):
+#     return carb.Float3(
+#         a.x - b.x,
+#         a.y - b.y,
+#         a.z - b.z,
+#     )
 
-def float3_mul_float(a: carb.Float3, b: float):
-    return carb.Float3(
-        a.x * b,
-        a.y * b,
-        a.z * b,
-    )
+# def float3_mul_float(a: carb.Float3, b: float):
+#     return carb.Float3(
+#         a.x * b,
+#         a.y * b,
+#         a.z * b,
+#     )
 
-def float3_lerp(a: carb.Float3, b: carb.Float3, t: float):
-    offset = float3_sub(b, a)
-    offset = float3_mul_float(offset, t)
-    return float3_add(a, offset)
+# def float3_lerp(a: carb.Float3, b: carb.Float3, t: float):
+#     offset = float3_sub(b, a)
+#     offset = float3_mul_float(offset, t)
+#     return float3_add(a, offset)
 
 
 def carb_to_gf(v: carb.Float3):
     return Gf.Vec3d(v.x, v.y, v.z)
 
+def gf_lerp(a: Gf.Vec3d, b: Gf.Vec3d, t: float):
+    offset = b - a
+    offset = offset * t
+    return a + offset
 
-def float3_magnitude(v: carb.Float3):
-    sum_of_squares = (v.x * v.x) + \
-                    (v.y * v.y) + \
-                    (v.z * v.z)
+# def float3_magnitude(v: carb.Float3):
+#     sum_of_squares = (v.x * v.x) + \
+#                     (v.y * v.y) + \
+#                     (v.z * v.z)
 
-    return math.sqrt(sum_of_squares)
+#     return math.sqrt(sum_of_squares)
 
 
 class PathNavigator:
@@ -84,7 +88,7 @@ class PathNavigator:
         point = self._points[self._current_index]
         if self._current_index < len(self._points) - 1:
             next_point = self._points[self._current_index + 1]
-            point = float3_lerp(point, next_point, self._current_progress)
+            point = gf_lerp(point, next_point, self._current_progress)
 
         return point
 
@@ -95,7 +99,7 @@ class PathNavigator:
 
             current_point = self._points[self._current_index]
             next_point = self._points[self._current_index + 1]
-            span = float3_magnitude(float3_sub(next_point, current_point))
+            span = Gf.Vec3d.GetLength(next_point - current_point)
             distance_rate = distance / span if span > 0 else 1
             remaining_progress = 1 - self._current_progress
 
@@ -128,6 +132,14 @@ class NavSample:
         actor.GetRadiusAttr().Set(50)
         self._actor_transform = Transform(actor)
 
+        self._path_visualizer = PathVisualizer(
+            self._stage,
+            "/World/PathVisualizer",
+            self._path_points
+        )
+        self._path_navigator = PathNavigator(self._path_points)
+        self._actor_transform.position = self._path_navigator.evaluate_current_position()
+
         self._update_sub = (
             omni.kit.app.get_app()
                 .get_update_event_stream()
@@ -137,13 +149,6 @@ class NavSample:
                 )
         )
 
-        self._path_visualizer = PathVisualizer(
-            self._stage,
-            "/World/PathVisualizer",
-            self._path_points
-        )
-        self._path_navigator = PathNavigator(self._path_points)
-        self._actor_transform.position_carb = self._path_navigator.evaluate_current_position()
 
 
     def stop(self):
