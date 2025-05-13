@@ -1,0 +1,9 @@
+// pyrightconfig.json の例
+{
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "src/experimental",
+    "src/typings/**"
+  ]
+}

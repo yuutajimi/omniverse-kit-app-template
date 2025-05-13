@@ -12,6 +12,7 @@
 import omni.ext
 import omni.timeline as timeline
 from .nav_sample import NavSample
+from typing import cast
 
 # Any class derived from `omni.ext.IExt` in the top level module (defined in
 # `python.modules` of `extension.toml`) will be instantiated when the extension
@@ -30,7 +31,7 @@ class MyExtension(omni.ext.IExt):
             timeline_interface
                 .get_timeline_event_stream()
                 .create_subscription_to_pop_by_type(
-                    timeline.TimelineEventType.PLAY,
+                    cast(int, timeline.TimelineEventType.PLAY),
                     self._on_timeline_play
                 )
         )
@@ -38,7 +39,7 @@ class MyExtension(omni.ext.IExt):
             timeline_interface
                 .get_timeline_event_stream()
                 .create_subscription_to_pop_by_type(
-                    timeline.TimelineEventType.STOP,
+                    cast(int, timeline.TimelineEventType.STOP),
                     self._on_timeline_stop
                 )
         )

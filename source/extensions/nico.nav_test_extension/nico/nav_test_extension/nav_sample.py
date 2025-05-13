@@ -1,13 +1,15 @@
 import omni.anim.navigation.core as nav
 import carb
+import carb.events
 import omni.usd
 import omni.kit.app
 from pxr import UsdGeom, Gf, Sdf, Usd, Tf
 from .transform import Transform
+from typing import Any, cast
 import math
 
 class PathVisualizer:
-    def __init__(self, stage: Usd.Stage, visualize_path: str, path_points: list[carb.Float3]):
+    def __init__(self, stage: Usd.Stage, visualize_path: str, path_points: list[Gf.Vec3d]):
         self._stage = stage
         root_path = Sdf.Path(visualize_path)
         self._root = UsdGeom.Xform.Define(stage, root_path)
@@ -18,7 +20,7 @@ class PathVisualizer:
     def destroy(self):
         self._stage.RemovePrim(self._root.GetPath())
 
-    def _create_point(self, position: carb.Float3, number: int):
+    def _create_point(self, position: Gf.Vec3d, number: int):
         root_path = self._root.GetPath()
         path = root_path.AppendChild(f"Point_{number}")
         sphere: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, path)
@@ -26,8 +28,8 @@ class PathVisualizer:
         Transform(sphere).position_carb = position
 
 
-def float3_add(a: carb.Float3, b: carb.Float3):
-    return carb.Float3(
+def float3_add(a: Gf.Vec3d, b: Gf.Vec3d):
+    return Gf.Vec3d(
         a.x + b.x,
         a.y + b.y,
         a.z + b.z,
@@ -54,6 +56,10 @@ def float3_lerp(a: carb.Float3, b: carb.Float3, t: float):
     return float3_add(a, offset)
 
 
+def carb_to_gf(v: carb.Float3):
+    return Gf.Vec3d(v.x, v.y, v.z)
+
+
 def float3_magnitude(v: carb.Float3):
     sum_of_squares = (v.x * v.x) + \
                     (v.y * v.y) + \
@@ -63,7 +69,7 @@ def float3_magnitude(v: carb.Float3):
 
 
 class PathNavigator:
-    def __init__(self, points: list[carb.Float3]):
+    def __init__(self, points: list[Gf.Vec3d]):
         self._points = points
         self._current_distance = 0.0
         self._current_index = 0
@@ -71,10 +77,10 @@ class PathNavigator:
         self._arrival_threshold = 1.0
 
     @property
-    def points(self) -> list[carb.Float3]:
+    def points(self) -> list[Gf.Vec3d]:
         return self._points
 
-    def evaluate_current_position(self) -> carb.Float3:
+    def evaluate_current_position(self) -> Gf.Vec3d:
         point = self._points[self._current_index]
         if self._current_index < len(self._points) - 1:
             next_point = self._points[self._current_index + 1]
@@ -113,7 +119,8 @@ class NavSample:
         if not self._path_points:
             return
 
-        self._stage: Usd.Stage = omni.usd.get_context().get_stage()
+        # self._stage: Usd.Stage|None = cast(Any, omni.usd.get_context()).get_stage()
+        self._stage: Usd.Stage|None = omni.usd.get_context().get_stage()
 
         actor_path = Sdf.Path("/World/Actor")
         actor: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, actor_path)
@@ -157,9 +164,12 @@ class NavSample:
     def _on_update(self, e: carb.events.IEvent):
         delta_time = e.payload["dt"]
 
+        assert self._actor_transform
+
         # self._actor_transform.position += Gf.Vec3d(0, self._speed, 0) * delta_time
         self._path_navigator.move_forward(self._speed * delta_time)
-        self._actor_transform.position_carb = self._path_navigator.evaluate_current_position()
+        self._actor_transform.position = self._path_navigator.evaluate_current_position()
+
 
     def _find_path(self):
         inav = nav.acquire_interface()
@@ -181,11 +191,14 @@ class NavSample:
             print("Path not found")
             return
 
-        path_points = path_query_result.get_points()
+        path_points: list[carb.Float3]|None = path_query_result.get_points()
         if not path_points:
             print("failed to get points on the path")
             return
 
         print(f"path found: {path_points}")
 
-        return path_points
+        return [
+            carb_to_gf(v)
+            for v in path_points
+        ]
