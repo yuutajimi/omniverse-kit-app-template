@@ -7,6 +7,9 @@ TVector = TypeVar('TVector', float, float|Gf.Vec3d)
 def to_gf(v: carb.Float3):
     return Gf.Vec3d(v.x, v.y, v.z)
 
+def to_carb(v: Gf.Vec3d):
+    return carb.Float3(v[0], v[1], v[2])
+
 # @overload
 # def lerp(start: float, end: float, t: float) -> float:
 #     ...
