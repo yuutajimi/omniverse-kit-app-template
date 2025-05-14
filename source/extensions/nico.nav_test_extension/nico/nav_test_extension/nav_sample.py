@@ -3,73 +3,11 @@ import carb
 import carb.events
 import omni.usd
 import omni.kit.app
-from pxr import UsdGeom, Gf, Sdf, Usd, Tf
+from pxr import UsdGeom,  Sdf, Usd
 from .transform import Transform
-from typing import Any, cast
-from . import omath
-
-class PathVisualizer:
-    def __init__(self, stage: Usd.Stage, visualize_path: str, path_points: list[Gf.Vec3d]):
-        self._stage = stage
-        root_path = Sdf.Path(visualize_path)
-        self._root = UsdGeom.Xform.Define(stage, root_path)
-
-        for i, point in enumerate(path_points):
-            self._create_point(point, i)
-
-    def destroy(self):
-        self._stage.RemovePrim(self._root.GetPath())
-
-    def _create_point(self, position: Gf.Vec3d, number: int):
-        root_path = self._root.GetPath()
-        path = root_path.AppendChild(f"Point_{number}")
-        sphere: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, path)
-        sphere.GetRadiusAttr().Set(10)
-        Transform(sphere).position = position
-
-
-
-class PathNavigator:
-    def __init__(self, points: list[Gf.Vec3d]):
-        self._points = points
-        self._current_distance = 0.0
-        self._current_index = 0
-        self._current_progress = 0.0
-        self._arrival_threshold = 1.0
-
-    @property
-    def points(self) -> list[Gf.Vec3d]:
-        return self._points
-
-    def evaluate_current_position(self) -> Gf.Vec3d:
-        point = self._points[self._current_index]
-        if self._current_index < len(self._points) - 1:
-            next_point = self._points[self._current_index + 1]
-            point = omath.lerp(point, next_point, self._current_progress)
-
-        return point
-
-    def move_forward(self, distance: float):
-        while distance > 0:
-            if self._current_index >= len(self._points) - 1:
-                return
-
-            current_point = self._points[self._current_index]
-            next_point = self._points[self._current_index + 1]
-            span = omath.length(next_point - current_point)
-            distance_rate = distance / span if span > 0 else 1
-            remaining_progress = 1 - self._current_progress
-
-            if remaining_progress > distance_rate:
-                self._current_progress += distance_rate
-                break
-            else:
-                distance -= span * remaining_progress
-                self._current_index += 1
-                self._current_progress = 0
-
-        # print(f"moved: {self._current_index}: {self._current_progress}")
-
+from . import omath, usdutils
+from .path_visualizer import PathVisualizer
+from .path_navigator import PathNavigator
 
 class NavSample:
     def __init__(self):
@@ -81,7 +19,7 @@ class NavSample:
             return
 
         # self._stage: Usd.Stage|None = cast(Any, omni.usd.get_context()).get_stage()
-        self._stage: Usd.Stage|None = omni.usd.get_context().get_stage()
+        self._stage = usdutils.get_stage()
 
         actor_path = Sdf.Path("/World/Actor")
         actor: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, actor_path)
