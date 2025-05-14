@@ -9,6 +9,11 @@ from .path_visualizer import PathVisualizer
 from .path_navigator import PathNavigator
 from .path_finder import PathFinder
 
+def create_sphere(path: str, radius: float):
+    stage = usdutils.get_stage()
+    sphere: UsdGeom.Sphere = UsdGeom.Sphere.Define(stage, Sdf.Path(path))
+    sphere.GetRadiusAttr().Set(radius)
+    return sphere
 
 class NavSample:
     def __init__(self):
@@ -20,15 +25,16 @@ class NavSample:
         # self._stage: Usd.Stage|None = cast(Any, omni.usd.get_context()).get_stage()
         self._stage = usdutils.get_stage()
 
-        actor_path = Sdf.Path("/World/Actor")
-        actor: UsdGeom.Sphere = UsdGeom.Sphere.Define(self._stage, actor_path)
-        self._actor = actor
-        actor.GetRadiusAttr().Set(50)
-        self._actor_transform = Transform(actor)
+        self._actor = create_sphere("/World/Actor", 50)
+        self._actor_transform = Transform(self._actor)
+        self._destination = create_sphere("/World/Destination", 80)
+        self._destination_transform = Transform(self._destination)
+        self._destination_transform.position = Gf.Vec3d(1000, 50, 0)
+        self._last_destination = self._destination_transform.position
 
         path_points = self._path_finder.find(
             Gf.Vec3d(0, 0, 0),
-            Gf.Vec3d(1000, 50, 0)
+            self._destination_transform.position
         )
         self._path_visualizer = PathVisualizer(
             self._stage,
@@ -55,6 +61,10 @@ class NavSample:
 
         self._actor = None
         self._actor_transform = None
+
+        self._destination = None
+        self._destination_transform = None
+
         self._stage = None
         self._update_sub = None
         if self._path_visualizer:
@@ -65,7 +75,29 @@ class NavSample:
         delta_time = e.payload["dt"]
 
         assert self._actor_transform
+        assert self._destination_transform
 
         # self._actor_transform.position += Gf.Vec3d(0, self._speed, 0) * delta_time
         self._path_navigator.move_forward(self._speed * delta_time)
         self._actor_transform.position = self._path_navigator.evaluate_current_position()
+
+        if self._destination_transform.position != self._last_destination:
+            self._recalculate_path()
+
+        self._last_destination = self._destination_transform.position
+
+
+    def _recalculate_path(self):
+        assert self._actor_transform
+        assert self._destination_transform
+        assert self._path_visualizer
+
+        start_point = self._actor_transform.position
+        end_point = self._destination_transform.position
+
+        path_points = self._path_finder.find(
+            start_point,
+            end_point
+        )
+        print(f"path length: {len(path_points)}")
+        self._path_visualizer.update_path(path_points)
