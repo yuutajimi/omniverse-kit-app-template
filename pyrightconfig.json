@@ -1,9 +1,19 @@
 // pyrightconfig.json の例
 {
+  "include": [
+    // "source"
+  ],
   "exclude": [
     "**/node_modules",
     "**/__pycache__",
-    "src/experimental",
-    "src/typings/**"
-  ]
+    "**/**"
+  ],
+  "typeCheckingMode": "basic",
+
+  // インポート関連のレポート設定
+  "reportMissingImports": "error",    // 解決できないインポートをエラーとして報告
+  "reportMissingModuleSource": "warning", // モジュールのソースが見つからない場合に警告 (スタブがないサードパーティライブラリなど)
+
+  // 型スタブ関連のレポート設定
+  "reportMissingTypeStubs": "warning", // 型スタubが見つからない場合に警告
 }
