@@ -1,12 +1,7 @@
 // pyrightconfig.json の例
 {
-  "include": [
-    // "source"
-  ],
   "exclude": [
-    "**/node_modules",
     "**/__pycache__",
-    "**/**"
   ],
   "typeCheckingMode": "basic",
 

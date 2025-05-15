@@ -8,6 +8,7 @@ from . import usdutils
 from .path_visualizer import PathVisualizer
 from .path_navigator import PathNavigator
 from .path_finder import PathFinder
+from .polyline import Polyline
 
 def create_sphere(path: str, radius: float):
     stage = usdutils.get_stage()
@@ -30,17 +31,21 @@ class NavSample:
         self._destination = create_sphere("/World/Destination", 80)
         self._destination_transform = Transform(self._destination)
         self._destination_transform.position = Gf.Vec3d(1000, 50, 0)
-        self._last_destination = self._destination_transform.position
 
         path_points = self._path_finder.find(
             Gf.Vec3d(0, 0, 0),
             self._destination_transform.position
         )
-        self._path_visualizer = PathVisualizer(
+        # self._path_visualizer = PathVisualizer(
+        #     self._stage,
+        #     "/World/PathVisualizer",
+        #     path_points
+        # )
+        self._path_line = Polyline(
             self._stage,
-            "/World/PathVisualizer",
-            path_points
-        )
+            "/World/PathLine",
+            path_points,
+            color=Gf.Vec3f(0.3, 0.3, 1))
         self._path_navigator = PathNavigator(path_points)
         self._actor_transform.position = self._path_navigator.evaluate_current_position()
 
@@ -67,9 +72,9 @@ class NavSample:
 
         self._stage = None
         self._update_sub = None
-        if self._path_visualizer:
-            self._path_visualizer.destroy()
-        self._path_visualizer = None
+        # if self._path_visualizer:
+        #     self._path_visualizer.destroy()
+        # self._path_visualizer = None
 
     def _on_update(self, e: carb.events.IEvent):
         delta_time = e.payload["dt"]
@@ -81,16 +86,13 @@ class NavSample:
         self._path_navigator.move_forward(self._speed * delta_time)
         self._actor_transform.position = self._path_navigator.evaluate_current_position()
 
-        if self._destination_transform.position != self._last_destination:
-            self._recalculate_path()
-
-        self._last_destination = self._destination_transform.position
-
+        self._recalculate_path()
 
     def _recalculate_path(self):
         assert self._actor_transform
         assert self._destination_transform
-        assert self._path_visualizer
+        # assert self._path_visualizer
+        assert self._path_line
 
         start_point = self._actor_transform.position
         end_point = self._destination_transform.position
@@ -99,5 +101,6 @@ class NavSample:
             start_point,
             end_point
         )
-        print(f"path length: {len(path_points)}")
-        self._path_visualizer.update_path(path_points)
+        # print(f"path length: {len(path_points)}")
+        # self._path_visualizer.update_path(path_points)
+        self._path_line.update_points(path_points)
