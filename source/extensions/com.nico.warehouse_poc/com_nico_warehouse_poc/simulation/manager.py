@@ -1,191 +1,233 @@
 import omni.usd
-import omni.kit.commands
+import omni.kit.app # For app time if needed, though Animator handles it
 from pxr import Gf, UsdGeom, Usd
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Callable
 
 from .path_finder import PathFinder
-from .path_navigator import PathNavigator # PathNavigator をインポート
-from .animator import Animator # Animator をインポート
+from .animator import Animator
 from .data_exporter import DataExporter
-from ..utils import usdutils, omath # ユーティリティをインポート
-from ..core import settings # 設定を読み込むため
+from ..utils import usdutils, omath
+from ..core import settings as ext_settings # Using ext_settings to avoid conflict
 
-# PoC用の設定を定義 (本来は settings.py や外部ファイルから読み込む)
-POC_SETTINGS = {
+# Default settings that could be overridden by ext_settings.py
+DEFAULT_POC_SETTINGS = {
     "Layout_A": {
         "Scenario_1": {
-            "start_prim_path": "/World/Layout_A/StartPoints/Start_1", # 開始地点を示すプリムのパス
-            "end_prim_path": "/World/Layout_A/EndPoints/End_1",     # 目標地点を示すプリムのパス
-            "agent_prim_path": "/World/Agents/SimpleAgent_A",       # 動かすエージェントのプリムパス
-            "agent_speed": 2.0,  # units per second
+            "start_prim_path": "/World/Layout_A/StartPoints/Start_1",
+            "end_prim_path": "/World/Layout_A/EndPoints/End_1",
+            "agent_prim_path": "/World/Agents/SimpleAgent_A",
+            "agent_speed": 2.0,
             "output_filename_template": "results/layout_A_scenario_1_results.yaml"
         },
-        # 他のシナリオ...
+        "Scenario_2": {
+            "start_prim_path": "/World/Layout_A/StartPoints/Start_2",
+            "end_prim_path": "/World/Layout_A/EndPoints/End_2",
+            "agent_prim_path": "/World/Agents/SimpleAgent_B",
+            "agent_speed": 1.5,
+            "output_filename_template": "results/layout_A_scenario_2_results.yaml"
+        }
     },
-    # 他のレイアウト...
+    "Layout_B": {
+        "Scenario_1": {
+            "start_prim_path": "/World/Layout_B/StartPoints/Start_X",
+            "end_prim_path": "/World/Layout_B/EndPoints/End_X",
+            "agent_prim_path": "/World/Agents/SimpleAgent_A",
+            "agent_speed": 2.5,
+            "output_filename_template": "results/layout_B_scenario_1_results.yaml"
+        }
+    }
 }
+
 
 class SimulationManager:
     def __init__(self):
-        print("SimulationManager initialized.")
+        print("SimulationManager: Initialized.")
         self._path_finder: Optional[PathFinder] = None
         self._animator: Optional[Animator] = None
         self._data_exporter: DataExporter = DataExporter()
         self._current_stage: Optional[Usd.Stage] = None
 
         try:
-            self._path_finder = PathFinder.create() # NavMeshの準備
+            self._path_finder = PathFinder.create()
         except RuntimeError as e:
-            print(f"Error initializing PathFinder: {e}")
-            self._path_finder = None # エラー時はNoneにしておく
+            print(f"SimulationManager Error: Initializing PathFinder failed: {e}")
+            self._path_finder = None
 
-        # アニメーションループのためのイベントサブスクリプション (Animator側で管理する方が良い場合もある)
-        # self._event_subs: List[carb.events.ISubscription] = []
-        # self._setup_update_event()
+        # Load settings from core.settings, with fallback to defaults
+        self._poc_settings = getattr(ext_settings, 'POC_SIMULATION_CONFIG', DEFAULT_POC_SETTINGS)
 
 
     def _get_prim_world_position(self, prim_path: str) -> Optional[Gf.Vec3d]:
-        """指定されたプリムのワールド座標を取得する"""
         if not self._current_stage:
             self._current_stage = usdutils.get_stage()
             if not self._current_stage:
-                print(f"Error: Stage not found to get prim position for {prim_path}")
+                print(f"SimulationManager Error: Stage not found to get prim position for {prim_path}")
                 return None
 
         prim = self._current_stage.GetPrimAtPath(prim_path)
-        if not prim.IsValid():
-            print(f"Error: Prim not found at {prim_path}")
+        if not prim or not prim.IsValid():
+            print(f"SimulationManager Error: Prim not found or invalid at {prim_path}")
             return None
         try:
-            # UsdGeom.Xformable を使ってワールド座標を取得
             xformable = UsdGeom.Xformable(prim)
             world_transform: Gf.Matrix4d = xformable.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
             translation: Gf.Vec3d = world_transform.ExtractTranslation()
             return translation
         except Exception as e:
-            print(f"Error getting world position for {prim_path}: {e}")
+            print(f"SimulationManager Error: Getting world position for {prim_path}: {e}")
             return None
 
-
-    def run_poc_simulation(self, layout_id: str, scenario_id: str):
-        """
-        PoC仕様に基づいたシミュレーションを実行する。
-        パラメータは内部のPOC_SETTINGSから取得する。
-        """
-        print(f"Attempting to run PoC simulation for Layout: {layout_id}, Scenario: {scenario_id}")
+    def run_poc_simulation(
+        self,
+        layout_id: str,
+        scenario_id: str,
+        on_success_callback: Optional[Callable[[str], None]] = None,
+        on_failure_callback: Optional[Callable[[str], None]] = None
+    ):
+        print(f"SimulationManager: Attempting to run PoC for Layout '{layout_id}', Scenario '{scenario_id}'")
         if not self._path_finder:
-            print("Error: PathFinder is not initialized. Cannot run simulation.")
+            msg = "PathFinder is not initialized. Cannot run simulation."
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
             return
 
-        self._current_stage = usdutils.get_stage() # 最新のステージを取得
+        self._current_stage = usdutils.get_stage()
         if not self._current_stage:
-            print("Error: USD Stage not found.")
+            msg = "USD Stage not found."
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
             return
 
-        # 1. シナリオ設定の取得
-        scenario_config = POC_SETTINGS.get(layout_id, {}).get(scenario_id)
+        scenario_config = self._poc_settings.get(layout_id, {}).get(scenario_id)
         if not scenario_config:
-            print(f"Error: Configuration not found for Layout '{layout_id}', Scenario '{scenario_id}'")
+            msg = f"Configuration not found for Layout '{layout_id}', Scenario '{scenario_id}'"
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
             return
 
         start_prim_path = scenario_config.get("start_prim_path")
         end_prim_path = scenario_config.get("end_prim_path")
         agent_prim_path = scenario_config.get("agent_prim_path")
-        agent_speed = scenario_config.get("agent_speed", 1.0)
-        output_filename = scenario_config.get("output_filename_template", "sim_results.yaml")
+        agent_speed = float(scenario_config.get("agent_speed", 1.0)) # Ensure float
+        output_filename = scenario_config.get("output_filename_template", f"sim_results_{layout_id}_{scenario_id}.yaml")
 
         if not all([start_prim_path, end_prim_path, agent_prim_path]):
-            print("Error: Incomplete prim paths in scenario configuration.")
+            msg = "Incomplete prim paths in scenario configuration."
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
             return
 
-        # 2. 開始地点と目標地点のワールド座標を取得
         start_pos = self._get_prim_world_position(start_prim_path)
         end_pos = self._get_prim_world_position(end_prim_path)
 
         if start_pos is None or end_pos is None:
-            print("Error: Could not determine start or end position from prims.")
+            msg = "Could not determine start or end position from prims."
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
             return
 
-        print(f"Start position: {start_pos}, End position: {end_pos} for agent {agent_prim_path}")
+        print(f"SimulationManager: Start: {start_pos}, End: {end_pos} for agent {agent_prim_path}")
 
-        # 3. 経路探索
         try:
             path_points: List[Gf.Vec3d] = self._path_finder.find(start_pos, end_pos)
-            if not path_points or len(path_points) < 2:
-                print("Error: Path could not be found or is too short.")
+            if not path_points or len(path_points) < 1 : # PathNavigator handles <1 point, find should return at least 1 if successful
+                msg = "Path could not be found or is too short (0 points)."
+                print(f"SimulationManager Error: {msg}")
+                if on_failure_callback: on_failure_callback(msg)
                 return
-            print(f"Path found with {len(path_points)} points.")
+            if len(path_points) == 1 and start_pos.GetDistance(end_pos) > 1e-3: # Start and end are different but only one point found
+                msg = "Path found only one point, but start and end are different. NavMesh issue?"
+                print(f"SimulationManager Warning: {msg}")
+                # Proceed with one point, PathNavigator handles it.
+
+            print(f"SimulationManager: Path found with {len(path_points)} points.")
         except Exception as e:
-            print(f"Error during path finding: {e}")
+            msg = f"Error during path finding: {e}"
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
             return
 
-        # 4. エージェントプリムの取得とAnimatorの初期化
         agent_prim = self._current_stage.GetPrimAtPath(agent_prim_path)
-        if not agent_prim.IsValid():
-            print(f"Error: Agent prim not found at {agent_prim_path}")
+        if not agent_prim or not agent_prim.IsValid():
+            msg = f"Agent prim not found at {agent_prim_path}"
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
             return
 
-        # 既存のAnimatorがあれば停止・クリーンアップ
         if self._animator:
-            self._animator.stop_animation() # 以前のアニメーションを停止
+            self._animator.stop_animation()
             self._animator.cleanup()
 
-        self._animator = Animator(agent_prim, path_points, agent_speed)
-        self._animator.start_animation(on_complete_callback=lambda: self._on_animation_complete(layout_id, scenario_id, path_points, output_filename))
-
-        print(f"Animation started for agent: {agent_prim_path}")
-
-
-    def _on_animation_complete(self, layout_id: str, scenario_id: str, path_points: List[Gf.Vec3d], output_filename: str):
-        """アニメーション完了時のコールバック"""
-        print(f"Animation completed for Layout: {layout_id}, Scenario: {scenario_id}")
-
-        if not path_points or len(path_points) < 1:
-            print("Error: Path points are empty, cannot calculate distance.")
+        try:
+            self._animator = Animator(agent_prim, path_points, agent_speed)
+            animation_complete_handler = lambda: self._on_animation_complete(
+                layout_id, scenario_id, path_points, agent_speed, output_filename, on_success_callback, on_failure_callback
+            )
+            self._animator.start_animation(on_complete_callback=animation_complete_handler)
+            print(f"SimulationManager: Animation started for agent: {agent_prim_path}")
+        except ValueError as ve: # Catch errors from Animator init (e.g. bad path)
+            msg = f"Failed to initialize Animator: {ve}"
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
             return
 
-        # 5. 結果の計算と出力
-        total_distance = 0.0
-        for i in range(len(path_points) - 1):
-            total_distance += omath.length(path_points[i+1] - path_points[i])
 
-        # PoC仕様の必須項目
+    def _on_animation_complete(
+        self,
+        layout_id: str,
+        scenario_id: str,
+        path_points: List[Gf.Vec3d],
+        agent_speed: float, # Pass speed for consistent calculation
+        output_filename: str,
+        on_success_callback: Optional[Callable[[str], None]],
+        on_failure_callback: Optional[Callable[[str], None]]
+    ):
+        print(f"SimulationManager: Animation completed for Layout '{layout_id}', Scenario '{scenario_id}'")
+
+        if not path_points: # Should not happen if path finding was successful
+            msg = "Path points are empty at animation complete. Cannot calculate results."
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
+            return
+
+        total_distance = 0.0
+        if len(path_points) > 1:
+            for i in range(len(path_points) - 1):
+                total_distance += omath.length(path_points[i+1] - path_points[i])
+
         start_coord_dict = {"X": path_points[0][0], "Y": path_points[0][1], "Z": path_points[0][2]}
         end_coord_dict = {"X": path_points[-1][0], "Y": path_points[-1][1], "Z": path_points[-1][2]}
 
-        # PoC仕様の推奨項目
-        agent_speed = POC_SETTINGS.get(layout_id, {}).get(scenario_id, {}).get("agent_speed", 1.0)
-        estimated_time = total_distance / agent_speed if agent_speed > 0 else 0.0
+        estimated_time = total_distance / agent_speed if agent_speed > 1e-6 else 0.0
         path_coords_list = [{"X": p[0], "Y": p[1], "Z": p[2]} for p in path_points]
-
 
         simulation_results = {
             "layout_id": layout_id,
             "scenario_id": scenario_id,
             "start_point_coords": start_coord_dict,
             "end_point_coords": end_coord_dict,
-            "total_distance": round(total_distance, 3),
-            "estimated_time_seconds": round(estimated_time, 3), # 推奨項目
-            "path_coordinates": path_coords_list # 推奨項目
+            "total_distance_meters": round(total_distance, 3), # Assuming units are meters
+            "estimated_time_seconds": round(estimated_time, 3),
+            "path_coordinates": path_coords_list
         }
 
-        print(f"Results: {simulation_results}")
-        self._data_exporter.export_to_yaml(simulation_results, output_filename) # または settings からファイル名取得
+        print(f"SimulationManager Results: {simulation_results}")
+        try:
+            self._data_exporter.export_to_yaml(simulation_results, output_filename)
+            msg = f"Results exported to {output_filename}"
+            if on_success_callback: on_success_callback(msg)
+        except Exception as e:
+            msg = f"Failed to export results: {e}"
+            print(f"SimulationManager Error: {msg}")
+            if on_failure_callback: on_failure_callback(msg)
 
-        # Animatorのリソース解放 (必要であれば)
-        if self._animator:
-            self._animator.cleanup() # アニメーションが完了したらクリーンアップ
+        if self._animator: # Cleanup animator for this run
+            self._animator.cleanup()
             self._animator = None
 
-
     def cleanup(self):
-        print("SimulationManager cleanup.")
+        print("SimulationManager: Cleanup.")
         if self._animator:
             self._animator.stop_animation()
             self._animator.cleanup()
             self._animator = None
-        # 他に必要なクリーンアップ処理があればここに記述
-        # (例: イベントサブスクリプションの解除など)
-        # for sub in self._event_subs:
-        #     sub.unsubscribe()
-        # self._event_subs.clear()

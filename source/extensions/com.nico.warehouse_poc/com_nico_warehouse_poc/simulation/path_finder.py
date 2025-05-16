@@ -1,6 +1,7 @@
+# (ユーザー提供のファイルをそのまま配置)
 import omni.anim.navigation.core as nav
 from pxr import Gf
-from com_nico_warehouse_poc.utils import omath
+from ..utils import omath # Changed from "from . import omath"
 
 class PathFinder:
     def __init__(self, navmesh: nav.INavMesh) -> None:
@@ -28,6 +29,6 @@ class PathFinder:
         navmesh = inav.get_navmesh()
 
         if not navmesh:
-            raise RuntimeError("NavMesh not found or not baked")
+            raise RuntimeError("NavMesh not found or not baked. Please ensure NavMesh is generated.")
 
         return PathFinder(navmesh)

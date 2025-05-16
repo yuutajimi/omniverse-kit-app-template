@@ -1,37 +1,32 @@
 # core/settings.py
 
-# PoCのシミュレーション設定
-# SimulationManager内のPOC_SETTINGSをこちらに移動・拡張することを想定
-# 例:
-# DEFAULT_AGENT_SPEED = 1.5  # m/s
-# DEFAULT_OUTPUT_DIR = "outputs/poc_results"
+# This file can be used to store more complex or externally configurable settings.
+# For the PoC, SimulationManager uses its own DEFAULT_POC_SETTINGS, but
+# this provides a place for future expansion.
 
-# LAYOUT_CONFIGS = {
-#     "Layout_A": {
-#         "description": "Standard layout A",
-#         "navmesh_path": "/World/Layout_A/NavMesh", # (もしレイアウト毎にNavMeshが違うなら)
-#         "scenarios": {
-#             "Scenario_1": {
-#                 "start_prim_path": "/World/Layout_A/StartPoints/Start_1",
-#                 "end_prim_path": "/World/Layout_A/EndPoints/End_1",
-#                 "agent_prim_path": "/World/Agents/SimpleAgent_A",
-#                 "agent_speed": 2.0,
-#                 "output_filename_template": "layout_A_scenario_1_results.yaml"
-#             },
-#             # ...
-#         }
-#     },
-#     # ...
-# }
+# Example: How SimulationManager could load settings from here
+POC_SIMULATION_CONFIG = {
+    "Layout_A": {
+        "Scenario_1": {
+            "start_prim_path": "/World/Warehouse/Layout_A/Points/Start_A1", # More specific paths
+            "end_prim_path": "/World/Warehouse/Layout_A/Points/End_A1",
+            "agent_prim_path": "/World/Characters/Robot_Worker_1",
+            "agent_speed": 1.8,  # m/s
+            "output_filename_template": "results/layout_A/scenario_1_data.yaml" # Subdir for results
+        },
+        "Scenario_Debug": { # A scenario for quick debugging
+            "start_prim_path": "/World/Debug/Start",
+            "end_prim_path": "/World/Debug/End",
+            "agent_prim_path": "/World/Debug/TestAgent",
+            "agent_speed": 3.0,
+            "output_filename_template": "debug_results/latest_run.json"
+        }
+    },
+    "AnotherLayout": {
+        # ... other layout configurations
+    }
+}
 
-def get_layout_config(layout_id: str):
-    # return LAYOUT_CONFIGS.get(layout_id)
-    pass # ここで上記のような設定辞書から情報を取得するロジックを実装
-
-def get_scenario_config(layout_id: str, scenario_id: str):
-    # layout_conf = get_layout_config(layout_id)
-    # if layout_conf:
-    #     return layout_conf.get("scenarios", {}).get(scenario_id)
-    pass # ここでシナリオ設定を取得するロジックを実装
-
-# 他にもExtension全体で共有したい設定や定数があればここに追加
+# Other global settings for the extension could go here
+# مثلاً DEFAULT_AGENT_MODEL_USD_PATH = "/Projects/MyAssets/Agents/DefaultAgent.usd"
+# DEFAULT_OUTPUT_DIRECTORY = "warehouse_sim_outputs" # Overrides DataExporter's default

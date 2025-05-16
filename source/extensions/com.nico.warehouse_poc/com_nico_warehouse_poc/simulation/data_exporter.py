@@ -1,87 +1,88 @@
-import yaml
+import yaml # Requires PyYAML (ensure it's available or add to toml)
 import json
 import csv
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
-from ..utils import file_io # (推奨) YAML/JSON/CSVの具体的な書き出し処理を委譲
+# from ..utils import file_io # Option to use centralized file_io
 
 class DataExporter:
-    def __init__(self):
-        print("DataExporter initialized.")
-        # 出力ディレクトリがなければ作成 (プロジェクトルートからの相対パスなどを想定)
-        self._output_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "outputs")) # 例: Extensionルート/outputs
-        if not os.path.exists(self._output_dir):
+    def __init__(self, default_output_subdir: str = "simulation_outputs"):
+        print("DataExporter: Initialized.")
+        # Try to create output dir relative to the extension's root or a user-defined path
+        try:
+            # This path is relative to this file, so ../.. goes to com_nico_warehouse_poc root
+            extension_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+            self._base_output_dir = os.path.join(extension_root, default_output_subdir)
+        except Exception:
+            # Fallback if path resolution is tricky (e.g. during some testing scenarios)
+            self._base_output_dir = os.path.abspath(default_output_subdir)
+
+        if not os.path.exists(self._base_output_dir):
             try:
-                os.makedirs(self._output_dir)
+                os.makedirs(self._base_output_dir, exist_ok=True)
             except OSError as e:
-                print(f"Error creating output directory {self._output_dir}: {e}")
-                self._output_dir = os.path.abspath(".") # Fallback to current dir
+                print(f"DataExporter Error: Creating base output directory {self._base_output_dir} failed: {e}")
+                self._base_output_dir = os.path.abspath(".") # Fallback to current dir if creation fails
 
 
-    def _ensure_output_path(self, filename: str) -> str:
-        """ファイル名から完全な出力パスを生成し、ディレクトリが存在することを確認する"""
-        # ファイル名にディレクトリが含まれている場合、それを優先する
-        if os.path.dirname(filename):
-             abs_path = os.path.abspath(filename)
-             dir_path = os.path.dirname(abs_path)
-        else: # ファイル名のみの場合、デフォルトの出力ディレクトリを使用
-             dir_path = self._output_dir
-             abs_path = os.path.join(dir_path, filename)
+    def _prepare_filepath(self, filename: str) -> str:
+        """Ensures the full path is ready and directories are created."""
+        if os.path.isabs(filename):
+            # If filename is already an absolute path, use it directly.
+            # Ensure its directory exists.
+            abs_path = filename
+            dir_path = os.path.dirname(abs_path)
+        else:
+            # If filename is relative, join it with the base output directory.
+            abs_path = os.path.join(self._base_output_dir, filename)
+            dir_path = os.path.dirname(abs_path) # This will be self._base_output_dir if filename has no subdir
 
         if not os.path.exists(dir_path):
             try:
-                os.makedirs(dir_path)
+                os.makedirs(dir_path, exist_ok=True)
             except OSError as e:
-                print(f"Error creating directory {dir_path} for output file {filename}: {e}")
-                # エラー時はプロジェクトルート直下などにフォールバックも検討
-                return os.path.abspath(filename) # とりあえずそのまま返す
+                print(f"DataExporter Warning: Could not create directory {dir_path} for {filename}: {e}. Attempting to save in base.")
+                # Fallback to saving in base_output_dir if subdir creation fails
+                abs_path = os.path.join(self._base_output_dir, os.path.basename(filename))
         return abs_path
 
-
     def export_to_yaml(self, data: Dict[str, Any], filename: str = "simulation_results.yaml"):
-        """シミュレーション結果をYAMLファイルに出力する"""
-        filepath = self._ensure_output_path(filename)
-        print(f"Exporting results to YAML: {filepath}")
+        filepath = self._prepare_filepath(filename)
+        print(f"DataExporter: Exporting results to YAML: {filepath}")
         try:
-            # file_io.write_yaml(filepath, data) # file_io.py を使う場合
             with open(filepath, 'w', encoding='utf-8') as f:
-                yaml.dump(data, f, allow_unicode=True, sort_keys=False, indent=2)
-            print(f"Successfully exported to {filepath}")
+                yaml.dump(data, f, allow_unicode=True, sort_keys=False, indent=2, Dumper=yaml.SafeDumper)
+            print(f"DataExporter: Successfully exported to {filepath}")
         except Exception as e:
-            print(f"Error exporting data to YAML file {filepath}: {e}")
+            print(f"DataExporter Error: Exporting data to YAML file {filepath} failed: {e}")
+            raise # Re-raise to allow manager to handle UI feedback
 
     def export_to_json(self, data: Dict[str, Any], filename: str = "simulation_results.json"):
-        """シミュレーション結果をJSONファイルに出力する"""
-        filepath = self._ensure_output_path(filename)
-        print(f"Exporting results to JSON: {filepath}")
+        filepath = self._prepare_filepath(filename)
+        print(f"DataExporter: Exporting results to JSON: {filepath}")
         try:
-            # file_io.write_json(filepath, data) # file_io.py を使う場合
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            print(f"Successfully exported to {filepath}")
+            print(f"DataExporter: Successfully exported to {filepath}")
         except Exception as e:
-            print(f"Error exporting data to JSON file {filepath}: {e}")
+            print(f"DataExporter Error: Exporting data to JSON file {filepath} failed: {e}")
+            raise
 
     def export_to_csv(self, data_list: List[Dict[str, Any]], filename: str = "simulation_results.csv"):
-        """
-        シミュレーション結果のリストをCSVファイルに出力する。
-        PoCの仕様では結果は1シナリオ1ファイルだが、将来的な拡張を考慮。
-        """
         if not data_list:
-            print("No data to export to CSV.")
+            print("DataExporter: No data to export to CSV.")
             return
 
-        filepath = self._ensure_output_path(filename)
-        print(f"Exporting results to CSV: {filepath}")
+        filepath = self._prepare_filepath(filename)
+        print(f"DataExporter: Exporting results to CSV: {filepath}")
         try:
-            # file_io.write_csv(filepath, data_list) # file_io.py を使う場合
-            # ヘッダーは最初の辞書のキーから取得
-            headers = list(data_list[0].keys())
+            headers = list(data_list[0].keys()) # Assumes all dicts in list have same keys
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=headers)
                 writer.writeheader()
                 writer.writerows(data_list)
-            print(f"Successfully exported to {filepath}")
+            print(f"DataExporter: Successfully exported to {filepath}")
         except Exception as e:
-            print(f"Error exporting data to CSV file {filepath}: {e}")
+            print(f"DataExporter Error: Exporting data to CSV file {filepath} failed: {e}")
+            raise

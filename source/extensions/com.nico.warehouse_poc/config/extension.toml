@@ -22,7 +22,9 @@ repository = "https://github.com/NVIDIA-Omniverse/kit-app-template"  # URL of th
 
 
 [dependencies]
-
+"omni.kit.uiapp" = {} # omni.uiを含む基本的なUIアプリケーション機能
+"omni.anim.navigation.bundle" = { version = "107.0.4" }
+# "omni.physx.bundle" = { version = "107.0.20" }
 
 [settings]
 
