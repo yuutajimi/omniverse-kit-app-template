@@ -26,4 +26,4 @@ def lerp(start, end, t): # Implementation
     raise TypeError("Unsupported types for lerp")
 
 def length(v: TVector) -> float:
-    return Gf.Vec3d.GetLength()
+    return Gf.Vec3d.GetLength(v)

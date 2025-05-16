@@ -1,4 +1,4 @@
-import yaml # Requires PyYAML (ensure it's available or add to toml)
+# import yaml # Requires PyYAML (ensure it's available or add to toml)
 import json
 import csv
 import os
@@ -47,16 +47,16 @@ class DataExporter:
                 abs_path = os.path.join(self._base_output_dir, os.path.basename(filename))
         return abs_path
 
-    def export_to_yaml(self, data: Dict[str, Any], filename: str = "simulation_results.yaml"):
-        filepath = self._prepare_filepath(filename)
-        print(f"DataExporter: Exporting results to YAML: {filepath}")
-        try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                yaml.dump(data, f, allow_unicode=True, sort_keys=False, indent=2, Dumper=yaml.SafeDumper)
-            print(f"DataExporter: Successfully exported to {filepath}")
-        except Exception as e:
-            print(f"DataExporter Error: Exporting data to YAML file {filepath} failed: {e}")
-            raise # Re-raise to allow manager to handle UI feedback
+    # def export_to_yaml(self, data: Dict[str, Any], filename: str = "simulation_results.yaml"):
+    #     filepath = self._prepare_filepath(filename)
+    #     print(f"DataExporter: Exporting results to YAML: {filepath}")
+    #     try:
+    #         with open(filepath, 'w', encoding='utf-8') as f:
+    #             yaml.dump(data, f, allow_unicode=True, sort_keys=False, indent=2, Dumper=yaml.SafeDumper)
+    #         print(f"DataExporter: Successfully exported to {filepath}")
+    #     except Exception as e:
+    #         print(f"DataExporter Error: Exporting data to YAML file {filepath} failed: {e}")
+    #         raise # Re-raise to allow manager to handle UI feedback
 
     def export_to_json(self, data: Dict[str, Any], filename: str = "simulation_results.json"):
         filepath = self._prepare_filepath(filename)

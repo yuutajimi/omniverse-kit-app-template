@@ -47,12 +47,6 @@ class SimulationManager:
         self._data_exporter: DataExporter = DataExporter()
         self._current_stage: Optional[Usd.Stage] = None
 
-        try:
-            self._path_finder = PathFinder.create()
-        except RuntimeError as e:
-            print(f"SimulationManager Error: Initializing PathFinder failed: {e}")
-            self._path_finder = None
-
         # Load settings from core.settings, with fallback to defaults
         self._poc_settings = getattr(ext_settings, 'POC_SIMULATION_CONFIG', DEFAULT_POC_SETTINGS)
 
@@ -85,7 +79,10 @@ class SimulationManager:
         on_failure_callback: Optional[Callable[[str], None]] = None
     ):
         print(f"SimulationManager: Attempting to run PoC for Layout '{layout_id}', Scenario '{scenario_id}'")
-        if not self._path_finder:
+
+        try:
+            self._path_finder = PathFinder.create()
+        except RuntimeError as e:
             msg = "PathFinder is not initialized. Cannot run simulation."
             print(f"SimulationManager Error: {msg}")
             if on_failure_callback: on_failure_callback(msg)
@@ -213,7 +210,7 @@ class SimulationManager:
 
         print(f"SimulationManager Results: {simulation_results}")
         try:
-            self._data_exporter.export_to_yaml(simulation_results, output_filename)
+            self._data_exporter.export_to_json(simulation_results, output_filename)
             msg = f"Results exported to {output_filename}"
             if on_success_callback: on_success_callback(msg)
         except Exception as e:

@@ -8,9 +8,9 @@
 POC_SIMULATION_CONFIG = {
     "Layout_A": {
         "Scenario_1": {
-            "start_prim_path": "/World/Warehouse/Layout_A/Points/Start_A1", # More specific paths
-            "end_prim_path": "/World/Warehouse/Layout_A/Points/End_A1",
-            "agent_prim_path": "/World/Characters/Robot_Worker_1",
+            "start_prim_path": "/World/Layout_A/Points/Start_1", # More specific paths
+            "end_prim_path": "/World/Layout_A/Points/End_1",
+            "agent_prim_path": "/World/Agents/Robot_Worker_1",
             "agent_speed": 1.8,  # m/s
             "output_filename_template": "results/layout_A/scenario_1_data.yaml" # Subdir for results
         },

@@ -7,5 +7,5 @@ project_ext (ext)
 repo_build.prebuild_link {
     { "data", ext.target_dir.."/data" },
     { "docs", ext.target_dir.."/docs" },
-    { "com", ext.target_dir.."/com" },
+    { "com_nico_warehouse_poc", ext.target_dir.."/com_nico_warehouse_poc" },
 }

@@ -73,7 +73,7 @@ class Animator:
 
         self._is_animating = True
         self._on_complete_callback = on_complete_callback
-        self._last_time = omni.kit.app.get_app().get_update_time()
+        self._last_time = omni.kit.app.get_app().get_time_since_start_ms()
 
         app_update = omni.kit.app.get_app().get_update_event_stream()
         self._update_sub = app_update.create_subscription_to_pop(
@@ -85,7 +85,7 @@ class Animator:
         if not self._is_animating:
             return
 
-        current_time = omni.kit.app.get_app().get_update_time()
+        current_time = omni.kit.app.get_app().get_time_since_start_ms()
         delta_time = current_time - self._last_time
         self._last_time = current_time
 
